@@ -18,6 +18,7 @@ from nltk import word_tokenize, WordNetLemmatizer, PorterStemmer
 from nltk import pos_tag
 from nltk import ngrams
 from nltk import sent_tokenize
+from sklearn import preprocessing
 
 from nltk.corpus import stopwords
 nltk.download('stopwords')
@@ -57,7 +58,7 @@ def text_clean_ponctuation(text):
 def regroupe_text(list_word):
     return ' '.join(list_word)
 
-def preprocessing(singleText):
+def preprocessing_nlp(singleText):
     lemmatizer = WordNetLemmatizer()
     singleText = del_emoji(singleText)
     LowerSingleText = singleText.lower()
@@ -68,7 +69,7 @@ def preprocessing(singleText):
     return TextCleanPonctuation
 
 def clean_text(text):
-    text_preprocessed = preprocessing(text)
+    text_preprocessed = preprocessing_nlp(text)
     return regroupe_text(text_preprocessed)
 
 df_train["clean_content"] = df_train.text.apply(clean_text)
@@ -77,7 +78,7 @@ df_train["clean_content"] = df_train.text.apply(clean_text)
 
 
 
-from sklearn import preprocessing
+
 
 df_train_clean = df_train.drop(["text"], axis = 1)
 X = df_train['clean_content']
