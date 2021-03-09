@@ -2,7 +2,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
-import re
 
 from sklearn.feature_extraction.text import TfidfTransformer, CountVectorizer
 from sklearn.pipeline import make_pipeline
@@ -18,7 +17,6 @@ from nltk import word_tokenize, WordNetLemmatizer, PorterStemmer
 from nltk import pos_tag
 from nltk import ngrams
 from nltk import sent_tokenize
-from sklearn import preprocessing
 
 from nltk.corpus import stopwords
 nltk.download('stopwords')
@@ -27,10 +25,31 @@ nltk.download('wordnet')
 
 array_col = ['skincare', 'hair', 'make-up', 'other']
 
+### data
 df_train = pd.read_csv("data/hackathon_loreal_train_set.csv")
-
 df_train = df_train.drop(['Unnamed: 0'], axis = 1)
 
+
+
+
+
+import re
+
+try:
+    import cPickle as pickle
+except ImportError:
+    import pickle  
+
+with open('Emoji_Dict.p', 'rb') as fp:
+    Emoji_Dict = pickle.load(fp)
+Emoji_Dict = {v: k for k, v in Emoji_Dict.items()}
+
+
+
+def convert_emojis_to_word(text):
+    for emot in Emoji_Dict:
+        text = re.sub(r'('+emot+')', "_".join(Emoji_Dict[emot].replace(",","").replace(":","").split()), text)
+    return text
 
 
 # Function to remove emoji.
@@ -46,6 +65,9 @@ def del_emoji(string):
                            
     return emoji_pattern.sub(r'', string)
 
+
+
+
 def text_clean_ponctuation(text):
     stop_punctuation = [':', '(', ')', '/', '|', ',', ']', ';',
                     '.', '*', '#', '"', '&', '~', '``',
@@ -58,6 +80,11 @@ def text_clean_ponctuation(text):
 def regroupe_text(list_word):
     return ' '.join(list_word)
 
+def count_text(text):
+    cv=CountVectorizer()
+    text_count = word_count_vector=cv.fit_transform(text)
+    return text_count
+
 def preprocessing_nlp(singleText):
     lemmatizer = WordNetLemmatizer()
     singleText = del_emoji(singleText)
@@ -65,43 +92,55 @@ def preprocessing_nlp(singleText):
     tokenizeSingletext = word_tokenize(LowerSingleText)
     lemmatizeSingleText = list(map(lemmatizer.lemmatize, tokenizeSingletext))
     TextCleanPonctuation = text_clean_ponctuation(lemmatizeSingleText)
+    # text_count_result = count_text( )
 
     return TextCleanPonctuation
 
 def clean_text(text):
     text_preprocessed = preprocessing_nlp(text)
-    return regroupe_text(text_preprocessed)
+    return  regroupe_text(text_preprocessed)
+
+
+
+
 
 df_train["clean_content"] = df_train.text.apply(clean_text)
 
-
-
-
-
-
+from sklearn import preprocessing
 
 df_train_clean = df_train.drop(["text"], axis = 1)
 X = df_train['clean_content']
-Y = df_train.drop(['clean_content', 'index'], axis = 1)
+Y = df_train.drop(['clean_content', 'index', 'text'], axis = 1)
 
 x_train, x_test, y_train, y_test = train_test_split(X, Y, test_size=0.2, random_state=4)
 
-tfidf = TfidfTransformer()
 
-tfidf.fit(x_train)
+cv=CountVectorizer()
+cv.fit(x_train)
+x_train_count = cv.fit_transform(x_train).astype('int32').toarray()
+x_test_count = cv.transform(x_test).astype('int32').toarray()
 
-x_vectorized_train = tfidf.transform(x_train)
-x_vectorized_test = tfidf.transform(x_test)
 
-model.fit(x_vectorized_train, y_train)
-y_predicted = model.predict(x_vectorized_test)
 
-pipe = make_pipeline(TfidfTransformer())
-pipe.fit(x_train)
-X_feat_train = pipe.transform(x_train)
-X_feat_test = pipe.transform(x_test)
 
-X_feat_train_numpy = np.asarray(X_feat_train)
+from keras import backend as K
+
+def recall_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    recall = true_positives / (possible_positives + K.epsilon())
+    return recall
+
+def precision_m(y_true, y_pred):
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
+
+def f1_m(y_true, y_pred):
+    precision = precision_m(y_true, y_pred)
+    recall = recall_m(y_true, y_pred)
+    return 2*((precision*recall)/(precision+recall+K.epsilon()))
 
 
 from keras.models import Sequential
@@ -109,9 +148,12 @@ from keras.layers import Dense
 
 model = Sequential()
 
-model.add(Dense(128, input_shape=(8457,), activation='relu'))
+model.add(Dense(128, input_shape=(70574,), activation='relu'))
 model.add(Dense(4, activation='softmax'))
 
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['F1 score'])
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics = [f1_m])
 
-model.fit(X_feat_train_numpy, y_train, epochs=5)
+model.fit(x_train_count, y_train, epochs=5)
+
+
+evaluate = model.evaluate(x_test_count, y_test)
