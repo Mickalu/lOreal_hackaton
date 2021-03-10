@@ -50,7 +50,7 @@ x_test_count = cv.transform(x_test).astype('int32').toarray()
 model = Sequential()
 
 model.add(Dense(128, input_shape=(80736,), activation='relu'))
-model.add(Dense(4, activation='softmax'))
+model.add(Dense(4, activation='sigmoid'))
 
 model.compile(optimizer='adam', loss='binary_crossentropy', metrics = [f1_m])
 

@@ -59,7 +59,7 @@ def del_emoji(string):
 def text_clean_ponctuation(text):
     stop_punctuation = [':', '(', ')', '/', '|', ',', ']', ';',
                     '.', '*', '#', '"', '&', '~', '``',
-                    '-', '_', '\\', '@','?','!','\'', '[', '<', '>', '£', '$', '”', "\u2063", "•", "'s", "“"]
+                    '-', '_', '\\', '@','?','!','\'', '[', '<', '>', '£', '$', '”', "\u2063", "•", "'s", "“", "+"]
     stoplist = stopwords.words('english')
 
     TextCleanPonctuation = [word for word in text if word not in stop_punctuation and word not in stoplist]
@@ -73,6 +73,10 @@ def count_text(text):
     text_count = word_count_vector=cv.fit_transform(text)
     return text_count
 
+def delete_cara_no_useful(elem):
+    re.sub('[^a-zA-Z0-9 \n\.]', '',elem)
+    return elem
+
 def preprocessing_nlp(singleText):
     lemmatizer = WordNetLemmatizer()
     singleText = del_emoji(singleText)
@@ -80,9 +84,10 @@ def preprocessing_nlp(singleText):
     tokenizeSingletext = word_tokenize(LowerSingleText)
     lemmatizeSingleText = list(map(lemmatizer.lemmatize, tokenizeSingletext))
     TextCleanPonctuation = text_clean_ponctuation(lemmatizeSingleText)
+    clean_text = list(map(delete_cara_no_useful, TextCleanPonctuation))
     # text_count_result = count_text( )
 
-    return TextCleanPonctuation
+    return clean_text
 
 def clean_text(text):
     text_preprocessed = preprocessing_nlp(text)
